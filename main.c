@@ -9,9 +9,9 @@ unsigned int plant2value = 0; //                P1.6
 
 // Threshold values for each plants
 unsigned int const plant1DryValue = 800;
-unsigned int const plant1WetValue = 350;
+unsigned int const plant1WetValue = 650;
 unsigned int const plant2DryValue = 800;
-unsigned int const plant2WetValue = 625;
+unsigned int const plant2WetValue = 650;
 
 void readSensorValues(void) {
     ADC10CTL0 &= ~ENC;
