@@ -13,6 +13,13 @@ unsigned int const plant1WetValue = 350;
 unsigned int const plant2DryValue = 800;
 unsigned int const plant2WetValue = 625;
 
+void readSensorValues(void) {
+    ADC10CTL0 &= ~ENC;
+    while (ADC10CTL1 & ADC10BUSY);               // Wait if ADC10 core is active
+    ADC10SA = (int)ADCresults;                   // Data buffer start
+    ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion ready
+    __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
+}
 
 int main(void)
 {
@@ -133,13 +140,4 @@ __interrupt void ADC10_ISR (void)
     plant1value = ADCresults[0];
     plant2value = ADCresults[1];
   __bic_SR_register_on_exit(CPUOFF);        // Clear CPUOFF bit from 0(SR)
-}
-
-
-void readSensorValues(void) {
-    ADC10CTL0 &= ~ENC;
-    while (ADC10CTL1 & ADC10BUSY);               // Wait if ADC10 core is active
-    ADC10SA = (int)ADCresults;                   // Data buffer start
-    ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion ready
-    __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
 }
