@@ -10,10 +10,8 @@ unsigned int plant2value = 0; //                P1.6
 // Threshold values for each plants
 unsigned int const plant1DryValue = 800;
 unsigned int const plant1WetValue = 350;
-unsigned int const plant2DryValue = 450;
-unsigned int const plant2WetValue = 450;
-
-
+unsigned int const plant2DryValue = 800;
+unsigned int const plant2WetValue = 625;
 
 
 int main(void)
@@ -74,10 +72,7 @@ int main(void)
     P1OUT = 0x00; //turn off everything
     P1REN |= BIT1+BIT2; //enable pull up for unused ports
 
-
-    for(;;) {
-        _BIS_SR(LPM3_bits + GIE);       // Enter LPM3, interrupts enabled
-
+    while(1) {
         //turn on sensor and LED
         P1OUT = BIT4+BIT5+BIT0;
         __delay_cycles(1000000); //wait 1sec for sensor to settle
@@ -88,11 +83,11 @@ int main(void)
             //move servo to position
             TA1CCR1 = 500;
             __delay_cycles(1000000); //allow servo to move
-            P1OUT |= BIT4; //turn on pump;
+            P1OUT |= BIT3; //turn on pump;
             while(plant1value >= plant1WetValue) {
                 readSensorValues();
             }
-            P1OUT &= ~BIT4; // turn off pump
+            P1OUT &= ~BIT3; // turn off pump
         }
 
         // Water plant 2 if needed
@@ -100,16 +95,17 @@ int main(void)
             //move servo to position
             TA1CCR1 = 2300;
             __delay_cycles(1000000); //allow servo to move
-            P1OUT |= BIT4; //turn on pump;
+            P1OUT |= BIT3; //turn on pump;
             while(plant2value >= plant2WetValue) {
                 readSensorValues();
             }
-            P1OUT &= ~BIT4; // turn off pump
+            P1OUT &= ~BIT3; // turn off pump
         }
 
         //turn sensor and LED off
         P1OUT &= ~(BIT4+BIT5+BIT0);
 
+        _BIS_SR(LPM3_bits + GIE);       // Enter LPM3, interrupts enabled
     }
 }
 
