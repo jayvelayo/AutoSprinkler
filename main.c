@@ -13,12 +13,27 @@ unsigned int const plant1WetValue = 650;
 unsigned int const plant2DryValue = 800;
 unsigned int const plant2WetValue = 650;
 
+/*
+ * Function to read from ADC module. Enter LPM0 until results are done
+ * PRE: Array of 7 elements to store results
+ * POST: Modified array where index 0 = P1.7 to index 7 = P1.0
+ */
 void readSensorValues(void) {
     ADC10CTL0 &= ~ENC;
     while (ADC10CTL1 & ADC10BUSY);               // Wait if ADC10 core is active
     ADC10SA = (int)ADCresults;                   // Data buffer start
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion ready
     __bis_SR_register(CPUOFF + GIE);        // LPM0, ADC10_ISR will force exit
+}
+
+/*
+ * Function to place the CPU on rest to delay 1 second.
+ * PRE: Timer A module set to 32678 / 64 Hz, cont mode
+ */
+void delayOneSecond() {
+    TA0CCR1 = 512;
+    TA0CCTL1 = CCIE;
+    __bis_SR_register(CPUOFF + GIE); //LPM0, TimerA1_ISR will force exit
 }
 
 int main(void)
@@ -42,11 +57,11 @@ int main(void)
     BCSCTL3 |= XCAP_3;                      //12.5pF cap- setting for 32768Hz crystal
 
     /*
-     * TA0 Clock set up for 1 min intervals
+     * TA0 Clock set up for 1 sec intervals
      */
     TA0CCTL0 = CCIE;                   // CCR0 interrupt enabled
-    TA0CCR0 = 511;                 // 512 -> 1 sec, 30720 -> 1 min
-    TA0CTL = TASSEL_1 + ID_3 + MC_1;         // ACLK, /8, upmode
+    TA0CCR0 = 512-1;                 // 512 -> 1 sec, 30720 -> 1 min
+    TA0CTL = TASSEL_1 + ID_3 + MC_2;         // ACLK, /8, cont. mode
 
     /*
      * TA1 Clock setup for 50Hz PWM
@@ -82,14 +97,14 @@ int main(void)
     while(1) {
         //turn on sensor and LED
         P1OUT = BIT4+BIT5+BIT0;
-        __delay_cycles(1000000); //wait 1sec for sensor to settle
+        delayOneSecond(); //wait 1sec for sensor to settle
         readSensorValues();
 
         // Water plant 1 if needed
         if (plant1value > plant1DryValue){
             //move servo to position
             TA1CCR1 = 500;
-            __delay_cycles(1000000); //allow servo to move
+            delayOneSecond(); //allow servo to move
             P1OUT |= BIT3; //turn on pump;
             while(plant1value >= plant1WetValue) {
                 readSensorValues();
@@ -101,7 +116,7 @@ int main(void)
         if (plant2value > plant2DryValue){
             //move servo to position
             TA1CCR1 = 2300;
-            __delay_cycles(1000000); //allow servo to move
+            delayOneSecond(); //allow servo to move
             P1OUT |= BIT3; //turn on pump;
             while(plant2value >= plant2WetValue) {
                 readSensorValues();
@@ -122,15 +137,36 @@ int main(void)
 __interrupt void Timer_A (void)
 {
     static unsigned int currentMinutes = 0;
-    currentMinutes++;
+    static unsigned int currentSeconds = 0;
 
-    P1OUT ^= BIT0;
+    P1OUT ^= BIT0; //LED blink to test clock
+    currentSeconds++;
+    if (currentSeconds == 60) {
+        currentMinutes++;
+        currentSeconds = 0;
+    }
+
 
     //stay asleep until 1 day has passed
     if (currentMinutes == 1440) {  //1440 minutes = 1 day
         currentMinutes = 0;
         __bic_SR_register_on_exit(LPM3_bits);
     }
+}
+
+// Timer_A2 Interrupt Vector (TA0IV) handler
+#pragma vector=TIMER0_A1_VECTOR
+__interrupt void Timer_A1(void)
+{
+  switch( TA0IV )
+  {
+  case  0: break;
+  case  2:
+      TA0CCR1 &= ~CCIE;
+      __bic_SR_register_on_exit(CPUOFF); //CCR1 interrupt
+           break;
+  case 4: break; //CCR2 interrupt
+  }
 }
 
 // ADC10 Interrupt service routine
